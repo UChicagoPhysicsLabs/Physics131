@@ -1,21 +1,19 @@
 def on_voltage_change(change):
-    try:
-        linebuilder.voltages[change.owner.id] = float(change['new'])
-        linebuilder.lines[change.owner.id].set_color(get_color(float(change['new'])))
-        voltages[change.owner.id]= float(change['new'])
-        print(linebuilder.lines[change.owner.id].set_label("{} V".format(change['new'])))
-        ax.legend()
-        fig.canvas.draw()
-    except:
-        pass
-    #with output:
-    #    print(change['new'])
-    #    print((change.owner.id))
+#    try:
+    linebuilder.voltages[change.owner.id] = float(change['new'])
+    linebuilder.lines[change.owner.id].set_color(get_color(float(change['new'])))
+    voltages[change.owner.id]= float(change['new'])
+    print(linebuilder.lines[change.owner.id].set_label("{} V".format(change['new'])))
+    ax.legend()
+    fig.canvas.draw()
+    plt.show()
+#    except:
+#        pass
 
 def new_tab(holder=0):
     id_value = len(holder.children)
     newout = widgets.Output()
-    newvoltage = widgets.FloatSlider(value=voltages[id_value],min=0,max=10.0,step=0.1,description='Voltage:',disabled=False,continuous_update=False,orientation='horizontal',readout=True,readout_format='.1f')
+    newvoltage = widgets.FloatSlider(value=linebuilder.voltages[id_value],min=0,max=10.0,step=0.1,description='Voltage:',disabled=False,continuous_update=False,orientation='horizontal',readout=True,readout_format='.1f')
     holder.children += (widgets.VBox([newvoltage,newout]),)
     newvoltage.observe(on_voltage_change, names='value')
     newvoltage.id = id_value
@@ -25,24 +23,23 @@ def new_tab(holder=0):
         for n in range(len(x_data[id_value])):
             print("{:0.2f} , {:0.2f}".format(x_data[id_value][n],y_data[id_value][n]))
     
-    #holder.set_title(len(holder.children),"Line {}".len(holder.children))
     holder.set_title(id_value,"Line {}".format(id_value+1))
     holder.selected_index=id_value
 
 
 def on_value_change(change):
     try:
-     #   with output: print(change['new'])
         linebuilder.index = int(change['new'])
     except:
         pass
 
 def newline_clicked(b):
+    global voltages
     ln, = ax.plot([], [], linestyle="", marker="o",label ="{:0.2f} V".format(voltages[-1]))
     linebuilder.newline(ln)
     new_tab(Show_Voltages)
-    linebuilder.lines[-1].set_color(get_color(voltages[-1]))
-    linebuilder.lines[-1].set_label("{:0.2f} V".format(voltages[-1]))
+    linebuilder.lines[-1].set_color(get_color(linebuilder.voltages[-1]))
+    linebuilder.lines[-1].set_label("{:0.2f} V".format(linebuilder.voltages[-1]))
     ax.legend()
 
 def save_figure(b):
@@ -67,9 +64,12 @@ def clear_data(b):
     #for i, line in enumerate(ax.lines):
     #    ax.lines.pop(i)
         #line.remove()
-    line, = ax.plot(x_data[0], y_data[0], linestyle="", marker="o",label = "{:0.2f} V".format(voltages[0]))
+    line, = ax.plot(x_data[0], y_data[0], linestyle="", marker="o",label = "{:0.2f} V".format(voltages[0]),color=get_color(voltages[0]))
     linebuilder.reset(line)
     fig.canvas.draw();
+    ax.legend()
+    #fig.canvas.draw();
+
     #print("Cleared?")
 
 def undo_clicked(b): linebuilder.undo()
@@ -91,7 +91,6 @@ class LineBuilder:
         self.index = 0
         self.xs = [[]]
         self.ys = [[]]
-        #ax.clear()
         self.cid = line.figure.canvas.mpl_connect('button_press_event', self)
 
     def __call__(self, event):
@@ -129,29 +128,22 @@ class LineBuilder:
         self.lines.append(line)
         self.index = len(self.lines)-1
         self.voltages.append(self.index)
-        #voltages.append(self.index)
-        #with output: print(self.index)
-        #with output: print(self.lines[self.index])
         self.xs.append(list(line.get_xdata()))
         self.ys.append(list(line.get_ydata()))
-        #self.ys[self.index] = [list(line.get_ydata())]
         
     def newline(self,line):
+        global voltages
         self.lines.append(line)
         self.index = len(self.lines)-1
         self.voltages.append(self.index)
         voltages.append(self.index)
-        #with output: print(self.index)
-        #with output: print(self.lines[self.index])
         self.xs.append(list(line.get_xdata()))
         x_data.append(list(line.get_xdata()))
         self.ys.append(list(line.get_ydata()))
         y_data.append(list(line.get_ydata()))
-        #self.ys[self.index] = [list(line.get_ydata())]
         
     def draw(self):
         for n,item in enumerate(self.lines):
-            #with output: print("Drawing line ",n)
             item.set_data(self.xs[n], self.ys[n])
             item.figure.canvas.draw()
 
