@@ -43,9 +43,9 @@ def newline_clicked(b):
     ax.legend()
 
 def save_figure(b):
-    fname = time.ctime() + ".png"
-    plt.savefig(fname)
-    with output: print("Saved as ",fname)
+	fname = time.strftime("%b%d_Time_%H_%M_%S",time.gmtime())+".png"
+	plt.savefig(fname)
+	with output: print("Saved as ",fname)
 
 def clear_data(b):
     global x_data
