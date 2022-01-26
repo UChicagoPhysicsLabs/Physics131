@@ -1,3 +1,5 @@
+from IPython import get_ipython
+
 def on_voltage_change(change):
 #    try:
     linebuilder.voltages[change.owner.id] = float(change['new'])
@@ -7,17 +9,19 @@ def on_voltage_change(change):
     ax.legend()
     fig.canvas.draw()
     plt.show()
+    save_data()
 #    except:
 #        pass
 
-def new_tab(holder=0):
+def new_tab(holder=0,newv=None):
     id_value = len(holder.children)
     newout = widgets.Output()
-    newvoltage = widgets.FloatSlider(value=linebuilder.voltages[id_value],min=0,max=10.0,step=0.1,description='Voltage:',disabled=False,continuous_update=False,orientation='horizontal',readout=True,readout_format='.1f')
+    if (newv is None):
+        newv = linebuilder.voltages[id_value]
+    newvoltage = widgets.FloatSlider(value=newv,min=0,max=10.0,step=0.1,description='Voltage:',disabled=False,continuous_update=False,orientation='horizontal',readout=True,readout_format='.1f')
     holder.children += (widgets.VBox([newvoltage,newout]),)
     newvoltage.observe(on_voltage_change, names='value')
     newvoltage.id = id_value
-    
     with newout:
         newout.clear_output()
         for n in range(len(x_data[id_value])):
@@ -43,11 +47,80 @@ def newline_clicked(b):
     ax.legend()
 
 def save_figure(b):
-	fname = time.strftime("%b%d_Time_%H_%M_%S",time.gmtime())+".png"
-	plt.savefig(fname)
-	with output: print("Saved as ",fname)
+	fname = time.strftime("%b%d_Time_%H_%M_%S",time.gmtime())
+	figname=fname+".png"
+	datname=fname+".csv"
+	plt.savefig(figname)
+	with output: print("Saved as ",figname)
+	global x_data
+	global y_data
+	global voltages
+	save_data(datname)
+
+def save_data(fname="latest.csv"):
+    global x_data
+    global y_data
+    global voltages
+    xd = (sum(x_data,[]))
+    yd = (sum(y_data,[]))
+    vd = []
+    for index, item in enumerate(x_data):
+        vd.append(list(np.full_like(item,voltages[index])))
+    vd = (sum(vd,[]))
+    np.savetxt(fname,[xd,yd,vd],delimiter=",")
+
+def load_data(fname="latest.csv"):
+    xd = []
+    yd = []
+    vd = []
+    try:
+        a,b,c=np.loadtxt("latest.csv",delimiter = ",")
+        for volt in np.unique(c):
+            xd.append(list(a[c==volt]))
+            yd.append(list(b[c==volt]))
+            vd.append(volt)
+    except:
+        pass
+    return(xd,yd,vd)    
+
+def restore_data(b):
+    global x_data
+    global y_data
+    global voltages
+    global Show_Voltages
+    Show_Voltages.children = []
+    x_data,y_data,voltages = load_data()
+    line, = ax.plot(x_data[0], y_data[0], linestyle="", marker="o",label = "{:0.2f} V".format(voltages[0]),color=get_color(voltages[0]))
+    linebuilder.reset(line,x_data[0],y_data[0],voltages[0])
+    new_tab(Show_Voltages,voltages[0])
+    for index in range(1,len(voltages)):
+        ln, = ax.plot(x_data[index], y_data[index], linestyle="", marker="o",label ="{:0.2f} V".format(voltages[index]),color=get_color(voltages[index]))
+        linebuilder.restoreline(ln)
+        new_tab(Show_Voltages,voltages[index])
+    linebuilder.draw()
+    ax.legend()
+    
+def load_from_file(b):
+    global x_data
+    global y_data
+    global voltages
+    global Show_Voltages
+    Show_Voltages.children = []
+    fname = next(iter(b['new']))
+    x_data,y_data,voltages = load_data(fname)
+    line, = ax.plot(x_data[0], y_data[0], linestyle="", marker="o",label = "{:0.2f} V".format(voltages[0]),color=get_color(voltages[0]))
+    linebuilder.reset(line,x_data[0],y_data[0],voltages[0])
+    new_tab(Show_Voltages,voltages[0])
+    for index in range(1,len(voltages)):
+        ln, = ax.plot(x_data[index], y_data[index], linestyle="", marker="o",label ="{:0.2f} V".format(voltages[index]),color=get_color(voltages[index]))
+        linebuilder.restoreline(ln)
+        new_tab(Show_Voltages,voltages[index])
+    linebuilder.draw()
+    ax.legend()
+    
 
 def clear_data(b):
+    save_data()
     global x_data
     global y_data
     global voltages
@@ -61,21 +134,16 @@ def clear_data(b):
     voltages = [0]
     new_tab(Show_Voltages)
     ax.lines = []
-    #for i, line in enumerate(ax.lines):
-    #    ax.lines.pop(i)
-        #line.remove()
     line, = ax.plot(x_data[0], y_data[0], linestyle="", marker="o",label = "{:0.2f} V".format(voltages[0]),color=get_color(voltages[0]))
     linebuilder.reset(line)
     fig.canvas.draw();
     ax.legend()
-    #fig.canvas.draw();
-
-    #print("Cleared?")
 
 def undo_clicked(b): linebuilder.undo()
 
 class LineBuilder:
     def __init__(self, line):
+        self.ipython = get_ipython()
         self.lines = [line]
         self.voltages = [0]
         self.index = 0
@@ -83,14 +151,14 @@ class LineBuilder:
         self.ys = [list(line.get_ydata())]
         self.cid = line.figure.canvas.mpl_connect('button_press_event', self)
     
-    def reset(self,line):
+    def reset(self,line,startx=[],starty=[],startv=0):
         for l in self.lines:
             del l
         self.lines = [line]
-        self.voltages = [0]
+        self.voltages = [startv]
         self.index = 0
-        self.xs = [[]]
-        self.ys = [[]]
+        self.xs = [startx]
+        self.ys = [starty]
         self.cid = line.figure.canvas.mpl_connect('button_press_event', self)
 
     def __call__(self, event):
@@ -110,7 +178,8 @@ class LineBuilder:
             output.clear_output()
             for n in range(len(self.xs[self.index])):
                 print("{:0.2f} , {:0.2f}".format(self.xs[self.index][n],self.ys[self.index][n]))
-        self.draw()   
+        self.draw()
+        save_data()
             
     def undo(self):
         try:
@@ -121,6 +190,7 @@ class LineBuilder:
             with output: print("Point removed at (",lx, ", ",ly,")")
             self.lines[self.index].set_data(self.xs[self.index], self.ys[self.index])
             self.lines[self.index].figure.canvas.draw()
+            save_data()
         except:
             with output: print("Can't remove points now.")
     
@@ -146,4 +216,3 @@ class LineBuilder:
         for n,item in enumerate(self.lines):
             item.set_data(self.xs[n], self.ys[n])
             item.figure.canvas.draw()
-
