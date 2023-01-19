@@ -74,7 +74,7 @@ def load_data(fname="latest.csv"):
     yd = []
     vd = []
     try:
-        a,b,c=np.loadtxt("latest.csv",delimiter = ",")
+        a,b,c=np.loadtxt(fname,delimiter = ",")
         for volt in np.unique(c):
             xd.append(list(a[c==volt]))
             yd.append(list(b[c==volt]))
