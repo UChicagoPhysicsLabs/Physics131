@@ -107,6 +107,8 @@ def load_from_file(b):
     global Show_Voltages
     Show_Voltages.children = []
     fname = next(iter(b['new']))
+    if(type(fname) != str):
+        fname = fname['name']
     x_data,y_data,voltages = load_data(fname)
     line, = ax.plot(x_data[0], y_data[0], linestyle="", marker="o",label = "{:0.2f} V".format(voltages[0]),color=get_color(voltages[0]))
     linebuilder.reset(line,x_data[0],y_data[0],voltages[0])
